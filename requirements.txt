@@ -23,3 +23,5 @@ tqdm>=4.65.0
 colorama>=0.4.6
 torch  # Will automatically install M1-optimized version
 torchvision  # Will automatically install M1-optimized version
+
+anthropic==0.3.11

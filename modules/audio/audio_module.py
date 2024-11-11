@@ -9,6 +9,8 @@ import logging
 import torch
 from TTS.api import TTS
 
+from core.base import BaseModule
+
 @dataclass
 class TTSConfig:
     """TTS Configuration"""
