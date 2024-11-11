@@ -1,0 +1,25 @@
+# Core dependencies
+opencv-python>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# Audio processing
+SpeechRecognition>=3.10.0
+pyttsx3>=2.90
+sounddevice>=0.4.6
+soundfile>=0.12.1
+scipy>=1.11.0  # For audio processing
+
+# Machine Learning & Vision
+gpt4all>=1.0.8
+mediapipe>=0.10.5
+
+# Utilities
+python-dotenv>=1.0.0
+tqdm>=4.65.0
+colorama>=0.4.6
+
+
+# Optional but recommended for better performance
+webrtcvad>=2.0.10  # For better voice activity detection
+vosk>=0.3.7  # Offline speech recognition
