@@ -1,6 +1,3 @@
-import pyttsx3
-import asyncio
-import edge_tts
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
 from queue import Queue
@@ -9,88 +6,79 @@ import numpy as np
 import sounddevice as sd
 import time
 import logging
-
+import torch
+from TTS.api import TTS
 
 @dataclass
 class TTSConfig:
     """TTS Configuration"""
-    engine: str = "pyttsx3"  # "pyttsx3" or "edge-tts"
-    voice: str = "fr-FR-HenriNeural"  # For edge-tts
-    rate: int = 175
+    model_name: str = "tts_models/en/vctk/vits"
+    speaker: str = "p273"  # VCTK speaker ID
+    language: str = "en"
+    rate: float = 1.0  # Speed multiplier
     volume: float = 1.0
-    pitch: int = 100
 
 class TTSEngine:
-    """TTS Engine wrapper supporting multiple backends"""
+    """TTS Engine using Coqui TTS"""
     
     def __init__(self, config: TTSConfig, logger: logging.Logger):
         self.config = config
         self.logger = logger
-        self.engine = None
         self._audio_queue = Queue()
         self._is_speaking = False
         
-        if config.engine == "pyttsx3":
-            self._init_pyttsx3()
-        elif config.engine == "edge-tts":
-            self._init_edge_tts()
-        else:
-            raise ValueError(f"Unsupported TTS engine: {config.engine}")
-            
-    def _init_pyttsx3(self):
-        """Initialize pyttsx3 engine"""
+        # Initialize Coqui TTS
+        self._init_tts()
+        
+    def _init_tts(self):
+        """Initialize Coqui TTS engine"""
         try:
-            self.engine = pyttsx3.init()
-            self.engine.setProperty('rate', self.config.rate)
-            self.engine.setProperty('volume', self.config.volume)
+            # Use MPS (Metal) for M1 Macs if available
+            device = "mps" if torch.backends.mps.is_available() else "cpu"
+            self.logger.info(f"Using device: {device}")
             
-            # Set French voice if available
-            voices = self.engine.getProperty('voices')
-            french_voice = next((v for v in voices if 'fr' in v.id.lower()), None)
-            if french_voice:
-                self.engine.setProperty('voice', french_voice.id)
-                
+            # Initialize TTS with the specified model
+            self.engine = TTS(model_name=self.config.model_name, progress_bar=False)
+            self.engine.to(device)
+            
+            self.logger.info("TTS engine initialized successfully")
+            
         except Exception as e:
-            self.logger.error(f"Failed to initialize pyttsx3: {e}")
+            self.logger.error(f"Failed to initialize Coqui TTS: {e}")
             raise
             
-    def _init_edge_tts(self):
-        """Initialize edge-tts"""
-        self.communicate = edge_tts.Communicate
-        
-    async def _edge_tts_speak(self, text: str):
-        """Edge TTS speak implementation"""
+    def _play_audio(self, wav: np.ndarray, sample_rate: int):
+        """Play audio using sounddevice"""
         try:
-            communicate = self.communicate(text, self.config.voice)
+            # Apply volume adjustment
+            wav = wav * self.config.volume
             
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    self._audio_queue.put(chunk["data"])
-                    
+            # Play the audio
+            sd.play(wav, sample_rate, blocking=True)
+            sd.wait()
+            
         except Exception as e:
-            self.logger.error(f"Edge TTS error: {e}")
-            
-    def _play_audio(self):
-        """Play audio from queue"""
-        while not self._audio_queue.empty():
-            try:
-                audio_data = self._audio_queue.get()
-                sd.play(audio_data, blocking=True)
-            except Exception as e:
-                self.logger.error(f"Error playing audio: {e}")
+            self.logger.error(f"Error playing audio: {e}")
                 
     def speak(self, text: str):
-        """Speak text using configured engine"""
+        """Speak text using Coqui TTS"""
         if not text:
             return
             
         try:
-            if self.config.engine == "pyttsx3":
-                self.engine.say(text)
-                self.engine.runAndWait()
-            else:
-                asyncio.run(self._edge_tts_speak(text))
-                self._play_audio()
+            # Generate audio
+            wav = self.engine.tts(
+                text=text,
+                speaker=self.config.speaker,
+                language=self.config.language,
+                speed=self.config.rate
+            )
+            
+            # Get the sample rate from the model
+            sample_rate = self.engine.synthesizer.output_sample_rate
+            
+            # Play the audio
+            self._play_audio(wav, sample_rate)
                 
         except Exception as e:
             self.logger.error(f"Error in TTS: {e}")
@@ -108,11 +96,11 @@ class AudioModule(BaseModule):
         
         # TTS Configuration
         self.tts_config = TTSConfig(
-            engine=getattr(config, 'tts_engine', 'pyttsx3'),
-            voice=getattr(config, 'tts_voice', 'fr-FR-HenriNeural'),
-            rate=getattr(config, 'tts_rate', 175),
-            volume=getattr(config, 'tts_volume', 1.0),
-            pitch=getattr(config, 'tts_pitch', 100)
+            model_name=getattr(config, 'tts_model', 'tts_models/en/vctk/vits'),
+            speaker=getattr(config, 'tts_speaker', 'p273'),
+            language=getattr(config, 'tts_language', 'en'),
+            rate=getattr(config, 'tts_rate', 1.0),
+            volume=getattr(config, 'tts_volume', 1.0)
         )
         
         # Initialize TTS engine

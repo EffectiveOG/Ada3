@@ -1,25 +1,25 @@
 # Core dependencies
-opencv-python>=4.8.0
+opencv-python-headless>=4.8.0  # Headless version for better M1 performance
 numpy>=1.24.0
 Pillow>=10.0.0
 
 # Audio processing
 SpeechRecognition>=3.10.0
-pyttsx3>=2.90
 sounddevice>=0.4.6
 soundfile>=0.12.1
 scipy>=1.11.0  # For audio processing
+coqui-tts>=0.14.0  # Modern TTS engine optimized for M1
 
 # Machine Learning & Vision
 gpt4all>=1.0.8
 mediapipe>=0.10.5
+ultralytics>=8.0.0  # For YOLO object detection
+face-recognition>=1.3.0  # For face recognition
+dlib>=19.24.0  # Required for face_recognition
 
 # Utilities
 python-dotenv>=1.0.0
 tqdm>=4.65.0
 colorama>=0.4.6
-
-
-# Optional but recommended for better performance
-webrtcvad>=2.0.10  # For better voice activity detection
-vosk>=0.3.7  # Offline speech recognition
+torch  # Will automatically install M1-optimized version
+torchvision  # Will automatically install M1-optimized version
